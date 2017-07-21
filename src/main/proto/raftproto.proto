@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "jraft.proto";
+option java_outer_classname = "RaftProto";
+
+package jraft.proto;
+
+// The raft communication service definition.
+service Raft {
+    // ask for a vote
+    rpc RequestVote (VoteRequest) returns (VoteResponse) {
+    }
+    // append entries or heartbeat only when log is empty
+    rpc Append (AppendEntryRequest) returns (AppendEntryResponse) {
+    }
+}
+
+message AppendEntryRequest {
+    int64 term = 1;
+    // sender id. leader who sends out the request
+    string leader_id = 2;
+
+    // when used as heart beat msg, below fields are not set
+    int64 prev_log_index = 3;
+    int64 prev_log_term = 4;
+    repeated LogEntry entries = 5;
+    // TODO: add more fields later
+}
+
+message AppendEntryResponse {
+    int64 term = 1;
+    bool success = 2;
+}
+
+message VoteRequest {
+    int64 term = 1;
+    // sender id. candiate who request a vote
+    string candidate_id = 2;
+}
+
+message VoteResponse {
+    int64 term = 1;
+    bool voteGranted = 2;
+}
+
+message LogEntry {
+    // TODO: to add more fields later
+}
