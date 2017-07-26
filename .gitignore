@@ -28,3 +28,6 @@ fabric.properties
 
 # generated files
 target/
+
+#data and config
+data/
