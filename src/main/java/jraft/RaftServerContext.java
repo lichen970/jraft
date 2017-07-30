@@ -1,7 +1,9 @@
 package jraft;
 
 import jraft.rpc.gRpcClient;
-import java.util.concurrent.ExecutorService;
+
+import java.util.Collection;
+import java.util.concurrent.ScheduledExecutorService;
 
 public interface RaftServerContext {
     /**
@@ -14,27 +16,29 @@ public interface RaftServerContext {
         LEADER,
     }
 
-    void setId(String id);
-
-    String getId();
+    String getServerName();
 
     void setTerm(long term);
 
     long getTerm();
 
-    void setLastCandidateIdVoteFor(String lastCandidateIdVoteFor);
+    void setLastVoteFor(String candidateServerName);
 
-    String getLastCandidateIdVoteFor();
+    String getLastVoteFor();
 
     void setLeaderId(String leaderId);
 
     String getLeaderId();
 
-    void addMemberToPeers(int peerId, gRpcClient client);
+    void addMemberToPeers(String peerId, gRpcClient client);
 
-    void removeMemberFromPeers(int peerId);
+    void removeMemberFromPeers(String peerId);
+
+    Collection<String> getPeers();
 
     void transition(Role currentRole);
 
-    ExecutorService getScheduler();
+    ScheduledExecutorService getScheduler();
+
+    void bootstrap();
 }
