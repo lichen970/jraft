@@ -22,12 +22,12 @@ import static org.mockito.Mockito.verify;
  * Created by Chen on 7/20/17.
  */
 @RunWith(JUnit4.class)
-public class gRpcClientTest {
+public class RpcClientTest {
 
     private final RaftGrpc.RaftImplBase serviceImpl = spy(new RaftRpcImpl());
 
     private Server fakeServer;
-    private gRpcClient client;
+    private RpcClient client;
 
     /**
      * Creates and starts a fake in-process server, and creates a client with an in-process channel.
@@ -39,7 +39,7 @@ public class gRpcClientTest {
                 .forName(uniqueServerName).directExecutor().addService(serviceImpl).build().start();
         InProcessChannelBuilder channelBuilder =
                 InProcessChannelBuilder.forName(uniqueServerName).directExecutor();
-        client = new gRpcClient(channelBuilder);
+        client = new RpcClient(channelBuilder);
     }
 
     /**
