@@ -18,10 +18,10 @@ import static org.junit.Assert.assertTrue;
  * Created by Chen on 7/20/17.
  */
 @RunWith(JUnit4.class)
-public class gRpcServerTest {
+public class RpcServerTest {
 
     private static final String UNIQUE_SERVER_NAME =
-            "in-process server for " + gRpcServerTest.class;
+            "in-process server for " + RpcServerTest.class;
 
     private final Server inProcessServer = InProcessServerBuilder
             .forName(UNIQUE_SERVER_NAME).addService(new RaftRpcImpl()).directExecutor()

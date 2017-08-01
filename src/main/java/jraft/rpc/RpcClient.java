@@ -12,19 +12,19 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by Chen on 7/20/17.
  */
-public class gRpcClient {
+public final class RpcClient {
 
     private static final org.slf4j.Logger logger
-            = LoggerFactory.getLogger(gRpcClient.class.getName());
+            = LoggerFactory.getLogger(RpcClient.class.getName());
 
     private final ManagedChannel channel;
 
     private final RaftGrpc.RaftBlockingStub blockingStub;
 
     /**
-     * Construct client connecting to {@link gRpcServer} at {@code host:port}.
+     * Construct client connecting to {@link RpcServer} at {@code host:port}.
      */
-    public gRpcClient(String host, int port) {
+    public RpcClient(String host, int port) {
         this(ManagedChannelBuilder.forAddress(host, port)
                 // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
                 // needing certificates.
@@ -32,10 +32,10 @@ public class gRpcClient {
     }
 
     /**
-     * Construct client for accessing {@link gRpcServer} server using the existing
+     * Construct client for accessing {@link RpcServer} server using the existing
      * channel.
      */
-    gRpcClient(ManagedChannelBuilder<?> channelBuilder) {
+    RpcClient(ManagedChannelBuilder<?> channelBuilder) {
         channel = channelBuilder.build();
         blockingStub = RaftGrpc.newBlockingStub(channel);
     }

@@ -1,8 +1,9 @@
 package jraft;
 
-import jraft.rpc.gRpcClient;
+import jraft.rpc.RpcClient;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 public interface RaftServerContext {
@@ -30,7 +31,7 @@ public interface RaftServerContext {
 
     String getLeaderId();
 
-    void addMemberToPeers(String peerId, gRpcClient client);
+    void addMemberToPeers(String peerId, RpcClient client);
 
     void removeMemberFromPeers(String peerId);
 
@@ -40,5 +41,14 @@ public interface RaftServerContext {
 
     ScheduledExecutorService getScheduler();
 
-    void bootstrap();
+    /**
+     * boot up server.
+     *
+     * @param selfConnectionString
+     * @param peerConnectionStrings
+     */
+    void bootstrap(String selfConnectionString, List<String>
+            peerConnectionStrings);
+
+    void close();
 }

@@ -1,26 +1,27 @@
 package jraft.impl;
 
-import com.apple.eawt.AppEvent;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import javafx.util.Pair;
 import jraft.RaftServerContext;
 import jraft.proto.AppendEntryRequest;
 import jraft.proto.AppendEntryResponse;
 import jraft.proto.VoteRequest;
 import jraft.proto.VoteResponse;
-import jraft.rpc.gRpcClient;
+import jraft.rpc.RpcClient;
+import jraft.rpc.RpcServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.*;
 
 public class RaftServerContextImpl implements RaftServerContext {
+
     private final Logger logger
             = LoggerFactory.getLogger(RaftServerContextImpl.class);
+
     private static final long LOWER_BOUND_TIMEOUT = 1000;
     private static final long UPPER_BOUND_TIMEOUT = 10000;
     private static final long HEART_BEAT_INTERVAL = 500;
@@ -34,7 +35,7 @@ public class RaftServerContextImpl implements RaftServerContext {
     private ScheduledFuture leaderEvent;
     private ScheduledFuture candidateEvent;
     private ScheduledFuture followerEvent;
-    private HashMap<String, gRpcClient> peerMap;
+    private HashMap<String, RpcClient> peerMap;
     private Role currentRole;
 
     public RaftServerContextImpl(String name,
@@ -44,7 +45,7 @@ public class RaftServerContextImpl implements RaftServerContext {
 
     public RaftServerContextImpl(String name,
                                  ScheduledExecutorService scheduler,
-                                 Map<String, gRpcClient> peers) {
+                                 Map<String, RpcClient> peers) {
         this.name = Preconditions.checkNotNull(name);
         this.scheduler = Preconditions.checkNotNull(scheduler);
         this.peerMap = new HashMap<>(peers == null ? Collections.emptyMap() : peers);
@@ -95,7 +96,7 @@ public class RaftServerContextImpl implements RaftServerContext {
     }
 
     @Override
-    public void addMemberToPeers(String peerId, gRpcClient client) {
+    public void addMemberToPeers(String peerId, RpcClient client) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(peerId));
         Preconditions.checkArgument(client != null);
         this.peerMap.put(peerId, client);
@@ -155,7 +156,7 @@ public class RaftServerContextImpl implements RaftServerContext {
         Preconditions.checkState(leaderEvent == null);
         Runnable sendHeartBeat = () -> {
             for (String peerName : peerMap.keySet()) {
-                gRpcClient client = peerMap.get(peerName);
+                RpcClient client = peerMap.get(peerName);
                 // safe check
                 Preconditions.checkState(name.equals(leaderId));
                 AppendEntryRequest request = AppendEntryRequest
@@ -216,7 +217,7 @@ public class RaftServerContextImpl implements RaftServerContext {
                     .setTerm(term)
                     .setCandidateId(name)
                     .build();
-            gRpcClient client = peerMap.get(peerName);
+            RpcClient client = peerMap.get(peerName);
             VoteResponse response = client.sendVoteRequest(request);
             logger.debug("vote response: {}", response);
             if (response.getVoteGranted()) {
@@ -267,14 +268,52 @@ public class RaftServerContextImpl implements RaftServerContext {
         return this.scheduler;
     }
 
+
     @Override
-    public void bootstrap() {
-        logger.info("bootstrap cluster with local member{} and remote peers " +
-                "{}", getServerName(), getPeers());
-        Preconditions.checkState(!peerMap.isEmpty());
+    public void bootstrap(String selfConnectionString, List<String>
+            clusterConnectionStrings) {
+        Preconditions.checkNotNull(clusterConnectionStrings);
+        logger.info("bootstrap cluster with local member {}/{} and remote " +
+                        "peers {}", getServerName(), selfConnectionString,
+                clusterConnectionStrings);
+        // 1. boot up rpc server first
+        Pair<String, Integer> myHostAndPort
+                = getHostAndPort(selfConnectionString);
+        RpcServer rpcServer = new RpcServer(myHostAndPort.getValue());
+        try {
+            rpcServer.start();
+        } catch (IOException e) {
+            logger.warn("not able to start local RPC server");
+            e.printStackTrace();
+        }
+        // 2. tries to connect to all other servers and store clients to map
+        for (String connectionString : clusterConnectionStrings) {
+            Pair<String, Integer> hostAndPort = getHostAndPort(connectionString);
+            RpcClient client
+                    = new RpcClient(hostAndPort.getKey(), hostAndPort.getValue());
+            logger.debug("established connection to {} via client {}",
+                    connectionString, client);
+            client.sendVoteRequest(VoteRequest.newBuilder().build());
+            peerMap.put(connectionString, client);
+        }
         // TODO: initialize log, and meta store later when added.
         // enter into local state machine
         // we can move this method out to server
-        transition(Role.FOLLOWER);
+        //transition(Role.FOLLOWER);
+    }
+
+    private Pair<String, Integer> getHostAndPort(String connectionString) {
+        Pair<String, Integer> hostAndPort = null;
+        if (connectionString == null || connectionString.isEmpty()) {
+            return hostAndPort;
+        }
+        String[] parts = connectionString.split(":");
+        hostAndPort = new Pair<>(parts[0], Integer.parseInt(parts[1]));
+        return hostAndPort;
+    }
+
+    @Override
+    public void close() {
+
     }
 }
