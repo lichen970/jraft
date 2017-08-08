@@ -31,7 +31,7 @@ public interface RaftServerContext {
 
     String getLeaderId();
 
-    void addMemberToPeers(String peerId, RpcClient client);
+    void addMemberToPeers(String peerId, String peerConnectionString);
 
     void removeMemberFromPeers(String peerId);
 

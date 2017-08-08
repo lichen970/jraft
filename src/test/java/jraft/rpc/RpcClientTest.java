@@ -3,6 +3,8 @@ package jraft.rpc;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import jraft.RaftServerContext;
+import jraft.impl.RaftServerContextImpl;
 import jraft.proto.AppendEntryRequest;
 import jraft.proto.RaftGrpc;
 import jraft.proto.VoteRequest;
@@ -15,6 +17,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -24,7 +27,7 @@ import static org.mockito.Mockito.verify;
 @RunWith(JUnit4.class)
 public class RpcClientTest {
 
-    private final RaftGrpc.RaftImplBase serviceImpl = spy(new RaftRpcImpl());
+    private final RaftGrpc.RaftImplBase serviceImpl = spy(new RaftRpcImpl(mock(RaftServerContextImpl.class)));
 
     private Server fakeServer;
     private RpcClient client;
