@@ -102,7 +102,7 @@ public class RaftServerContextImpl implements RaftServerContext {
         Pair<String, Integer> hostAndPort = getHostAndPort(peerConnectionString);
         RpcClient client = new RpcClient(hostAndPort.getKey(), hostAndPort.getValue());
         logger.debug("add rpc client {} (host: {}, port: {}) to peer map",
-                peerId, hostAndPort.getKey(), hostAndPort.getKey());
+                peerId, hostAndPort.getKey(), hostAndPort.getValue());
         this.peerMap.put(peerId, client);
     }
 
