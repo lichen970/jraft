@@ -4,7 +4,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
-import jraft.RaftServer;
 import jraft.impl.RaftServerContextImpl;
 import jraft.proto.*;
 import org.junit.After;
@@ -16,7 +15,6 @@ import org.mockito.Mock;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /**
@@ -29,7 +27,7 @@ public class RpcServerTest {
             "in-process server for " + RpcServerTest.class;
 
     @Mock
-    private static final RaftServerContextImpl raftServerContextImpl
+    private final RaftServerContextImpl raftServerContextImpl
             = mock(RaftServerContextImpl.class);
 
     private final Server inProcessServer = InProcessServerBuilder
@@ -63,11 +61,14 @@ public class RpcServerTest {
         long term = 55;
         when(raftServerContextImpl.getTerm()).thenReturn(term).thenReturn(term+1);
         RaftGrpc.RaftBlockingStub blockingStub = RaftGrpc.newBlockingStub(inProcessChannel);
+        // TODO: should add check logic for entries after append entry logic is added
+        // If term in request = current term, should return success is true
         AppendEntryResponse response = blockingStub.append(AppendEntryRequest
                 .newBuilder().setLeaderId(leaderId).setTerm(term).build());
         assertEquals(term, response.getTerm());
         assertTrue(response.getSuccess());
 
+        // If term in request < current term, should return success is false
         response = blockingStub.append(AppendEntryRequest
                 .newBuilder().setLeaderId(leaderId).setTerm(term).build());
         assertEquals(term+1, response.getTerm());
@@ -79,25 +80,29 @@ public class RpcServerTest {
         String candidateId = "candidate_0";
         String candidateIdVoted = "candidate_1";
         long term = 55;
-        when(raftServerContextImpl.getTerm()).thenReturn(term).thenReturn(term).thenReturn(term+1).thenReturn(term+1);
+        when(raftServerContextImpl.getTerm()).thenReturn(term-1).thenReturn(term-1).thenReturn(term+1).thenReturn(term+1);
         when(raftServerContextImpl.getLastVoteFor())
                 .thenReturn(null).thenReturn(candidateIdVoted).thenReturn(null).thenReturn(candidateIdVoted);
         RaftGrpc.RaftBlockingStub blockingStub = RaftGrpc.newBlockingStub(inProcessChannel);
+        // if term in request > current term and last vote for is null, should grand vote and return request term
         VoteResponse response = blockingStub.requestVote(VoteRequest
                 .newBuilder().setCandidateId(candidateId).setTerm(term).build());
         assertEquals(term, response.getTerm());
         assertTrue(response.getVoteGranted());
 
+        // if term in request > current term but last vote is not null, should not grand vote and return current term
         response = blockingStub.requestVote(VoteRequest
                 .newBuilder().setCandidateId(candidateId).setTerm(term).build());
-        assertEquals(term, response.getTerm());
+        assertEquals(term-1, response.getTerm());
         assertFalse(response.getVoteGranted());
 
+        // if term in request < current term and last vote for is null, should not grand vote and return current term
         response = blockingStub.requestVote(VoteRequest
                 .newBuilder().setCandidateId(candidateId).setTerm(term).build());
         assertEquals(term+1, response.getTerm());
         assertFalse(response.getVoteGranted());
 
+        // if term in request < current term and last vote is not null, should not grand vote and return current term
         response = blockingStub.requestVote(VoteRequest
                 .newBuilder().setCandidateId(candidateId).setTerm(term).build());
         assertEquals(term+1, response.getTerm());

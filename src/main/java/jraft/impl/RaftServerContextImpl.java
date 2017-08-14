@@ -101,12 +101,15 @@ public class RaftServerContextImpl implements RaftServerContext {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(peerConnectionString));
         Pair<String, Integer> hostAndPort = getHostAndPort(peerConnectionString);
         RpcClient client = new RpcClient(hostAndPort.getKey(), hostAndPort.getValue());
+        logger.debug("add rpc client {} (host: {}, port: {}) to peer map",
+                peerId, hostAndPort.getKey(), hostAndPort.getKey());
         this.peerMap.put(peerId, client);
     }
 
     @Override
     public void removeMemberFromPeers(String peerId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(peerId));
+        logger.debug("remove rpc client {} from peer map", peerId);
         this.peerMap.remove(peerId);
     }
 
@@ -139,9 +142,10 @@ public class RaftServerContextImpl implements RaftServerContext {
     private void resetState() {
         logger.debug("cleaning states before transition state...");
         this.voteCounter = 0;
-        this.leaderEvent.cancel(true);
-        this.candidateEvent.cancel(true);
-        this.followerEvent.cancel(true);
+        this.lastVotedFor = null;
+        if (this.leaderEvent != null) this.leaderEvent.cancel(true);
+        if (this.candidateEvent != null) this.candidateEvent.cancel(true);
+        if (this.followerEvent != null) this.followerEvent.cancel(true);
     }
 
     private long getRandomTimeout() {
@@ -316,6 +320,7 @@ public class RaftServerContextImpl implements RaftServerContext {
 
     @Override
     public void close() {
+        // TODO: need to backup log and term to disk before closing all threads
         this.followerEvent.cancel(true);
         this.leaderEvent.cancel(true);
         this.followerEvent.cancel(true);

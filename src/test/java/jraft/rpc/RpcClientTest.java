@@ -3,7 +3,6 @@ package jraft.rpc;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
-import jraft.RaftServerContext;
 import jraft.impl.RaftServerContextImpl;
 import jraft.proto.AppendEntryRequest;
 import jraft.proto.RaftGrpc;

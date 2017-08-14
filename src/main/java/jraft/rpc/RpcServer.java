@@ -1,5 +1,6 @@
 package jraft.rpc;
 
+import com.google.common.base.Preconditions;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import jraft.impl.RaftServerContextImpl;
@@ -31,6 +32,7 @@ final public class RpcServer {
     }
 
     public void start(RaftServerContextImpl raftServerContextImpl) throws IOException {
+        Preconditions.checkArgument(raftServerContextImpl != null);
         server = ServerBuilder.forPort(port)
                 .addService(new RaftRpcImpl(raftServerContextImpl))
                 .build().start();

@@ -1,14 +1,15 @@
 package jraft.impl;
 
 import jraft.RaftServerContext;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.rmi.server.ExportException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -23,14 +24,10 @@ public class RaftServerContextImplTest {
     static final String serverName2 = "server2";
     static final String serverIpAndPort = "localhost:50050";
 
-    @BeforeClass
-    public static void setUpClass() throws Exception {
-        raftServerContext = new RaftServerContextImpl(
-                serverName1, Executors.newScheduledThreadPool(1));
-    }
-
     @Before
     public void setUp() throws Exception {
+        raftServerContext = new RaftServerContextImpl(
+                serverName1, Executors.newScheduledThreadPool(1));
     }
 
     @After
@@ -74,26 +71,26 @@ public class RaftServerContextImplTest {
     }
 
     @Test
-    public void testBootstrap() throws Exception {
+    public void testSingleServerContextBootstrap() throws Exception {
         raftServerContext.bootstrap(serverIpAndPort, new LinkedList<String>());
         Assert.assertEquals(raftServerContext.getCurrentRole(), RaftServerContext.Role.FOLLOWER);
     }
 
     @Test
-    public void testBootstrap1() throws Exception {
+    public void testPairServerContextBootstrap() throws Exception {
         RaftServerContext context1 = new RaftServerContextImpl
-                ("localhost:50050", Executors.newScheduledThreadPool(1));
+                (serverName1, Executors.newScheduledThreadPool(1));
         RaftServerContext context2 = new RaftServerContextImpl
-                ("localhost:50051", Executors.newScheduledThreadPool(1));
+                (serverName2, Executors.newScheduledThreadPool(1));
 
         List<String> l1 = new LinkedList<>();
-        l1.add("localhost:50051");
-        context1.bootstrap("localhost:50050", l1);
+        l1.add("localhost:50052");
+        context1.bootstrap("localhost:50051", l1);
 
         List<String> l2 = new LinkedList<>();
-        l2.add("localhost:50050");
-        context2.bootstrap("localhost:50051", l2);
-        context1.getScheduler().awaitTermination(1, TimeUnit.MINUTES);
+        l2.add("localhost:50051");
+        context2.bootstrap("localhost:50052", l2);
+        context1.getScheduler().awaitTermination(30, TimeUnit.SECONDS);
     }
 
 }
