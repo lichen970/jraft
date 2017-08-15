@@ -96,15 +96,20 @@ public class RaftServerContextImpl implements RaftServerContext {
     }
 
     @Override
-    public void addMemberToPeers(String peerId, RpcClient client) {
+    public void addMemberToPeers(String peerId, String peerConnectionString) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(peerId));
-        Preconditions.checkArgument(client != null);
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(peerConnectionString));
+        Pair<String, Integer> hostAndPort = getHostAndPort(peerConnectionString);
+        RpcClient client = new RpcClient(hostAndPort.getKey(), hostAndPort.getValue());
+        logger.debug("add rpc client {} (host: {}, port: {}) to peer map",
+                peerId, hostAndPort.getKey(), hostAndPort.getValue());
         this.peerMap.put(peerId, client);
     }
 
     @Override
     public void removeMemberFromPeers(String peerId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(peerId));
+        logger.debug("remove rpc client {} from peer map", peerId);
         this.peerMap.remove(peerId);
     }
 
@@ -137,9 +142,10 @@ public class RaftServerContextImpl implements RaftServerContext {
     private void resetState() {
         logger.debug("cleaning states before transition state...");
         this.voteCounter = 0;
-        this.leaderEvent.cancel(true);
-        this.candidateEvent.cancel(true);
-        this.followerEvent.cancel(true);
+        this.lastVotedFor = null;
+        if (this.leaderEvent != null) this.leaderEvent.cancel(true);
+        if (this.candidateEvent != null) this.candidateEvent.cancel(true);
+        if (this.followerEvent != null) this.followerEvent.cancel(true);
     }
 
     private long getRandomTimeout() {
@@ -234,6 +240,7 @@ public class RaftServerContextImpl implements RaftServerContext {
             } else {
                 if (2 * voteCounter > peerMap.size() + 1) {
                     setTerm(this.term + 1);
+                    setLastVoteFor(null);
                     transition(Role.LEADER);
                 }
             }
@@ -259,7 +266,7 @@ public class RaftServerContextImpl implements RaftServerContext {
         this.currentRole = newRole;
     }
 
-    private Role getCurrentRole() {
+    public Role getCurrentRole() {
         return this.currentRole;
     }
 
@@ -281,7 +288,7 @@ public class RaftServerContextImpl implements RaftServerContext {
                 = getHostAndPort(selfConnectionString);
         RpcServer rpcServer = new RpcServer(myHostAndPort.getValue());
         try {
-            rpcServer.start();
+            rpcServer.start(this);
         } catch (IOException e) {
             logger.warn("not able to start local RPC server");
             e.printStackTrace();
@@ -293,13 +300,12 @@ public class RaftServerContextImpl implements RaftServerContext {
                     = new RpcClient(hostAndPort.getKey(), hostAndPort.getValue());
             logger.debug("established connection to {} via client {}",
                     connectionString, client);
-            client.sendVoteRequest(VoteRequest.newBuilder().build());
             peerMap.put(connectionString, client);
         }
         // TODO: initialize log, and meta store later when added.
         // enter into local state machine
         // we can move this method out to server
-        //transition(Role.FOLLOWER);
+        transition(Role.FOLLOWER);
     }
 
     private Pair<String, Integer> getHostAndPort(String connectionString) {
@@ -314,6 +320,11 @@ public class RaftServerContextImpl implements RaftServerContext {
 
     @Override
     public void close() {
-
+        // TODO: need to backup log and term to disk before closing all threads
+        this.followerEvent.cancel(true);
+        this.leaderEvent.cancel(true);
+        this.followerEvent.cancel(true);
+        this.scheduler.shutdown();
+        this.setRole(Role.INACTIVE);
     }
 }

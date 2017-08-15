@@ -1,7 +1,9 @@
 package jraft.rpc;
 
+import com.google.common.base.Preconditions;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import jraft.impl.RaftServerContextImpl;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
@@ -29,9 +31,10 @@ final public class RpcServer {
         this(DEFAULT_SERVER_PORT);
     }
 
-    public void start() throws IOException {
+    public void start(RaftServerContextImpl raftServerContextImpl) throws IOException {
+        Preconditions.checkArgument(raftServerContextImpl != null);
         server = ServerBuilder.forPort(port)
-                .addService(new RaftRpcImpl())
+                .addService(new RaftRpcImpl(raftServerContextImpl))
                 .build().start();
         logger.info("RPC server started, listening on " + port);
         Runtime.getRuntime().addShutdownHook(new Thread() {
